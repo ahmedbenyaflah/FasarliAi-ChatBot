@@ -98,6 +98,11 @@ export default function SignInPage() {
       setIsVerifying(false)
 
       // Send MFA code in background (no await to prevent delay)
+      console.log('Attempting to send MFA code...')
+      console.log('Backend URL:', BACKEND_URL)
+      console.log('Request URL:', `${BACKEND_URL}/api/users/login`)
+      console.log('Request payload:', { email: values.email, password: '***' })
+      
       fetch(`${BACKEND_URL}/api/users/login`, {
         method: 'POST',
         headers: {
@@ -108,18 +113,32 @@ export default function SignInPage() {
           password: values.password,
         }),
       }).then(async response => {
+        console.log('Backend response status:', response.status)
+        console.log('Backend URL:', BACKEND_URL)
+        
         if (response.ok) {
           const data = await response.json()
           console.log('MFA code sent successfully', data)
           toast.success('Verification code sent to your email')
         } else {
-          const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }))
-          console.error('Failed to send MFA code:', response.status, errorData)
-          toast.error(errorData.detail || 'Failed to send verification code. Please try again.')
+          const errorText = await response.text()
+          console.error('Failed to send MFA code - Status:', response.status)
+          console.error('Failed to send MFA code - Response:', errorText)
+          
+          let errorData
+          try {
+            errorData = JSON.parse(errorText)
+          } catch {
+            errorData = { detail: errorText || `HTTP ${response.status} Error` }
+          }
+          
+          console.error('Failed to send MFA code - Parsed:', errorData)
+          toast.error(errorData.detail || `Failed to send verification code (${response.status}). Please try again.`)
         }
       }).catch(err => {
-        console.error('Error sending MFA code:', err)
-        toast.error('Unable to connect to server. Please check your connection.')
+        console.error('Network error sending MFA code:', err)
+        console.error('Backend URL attempted:', BACKEND_URL)
+        toast.error(`Unable to connect to server at ${BACKEND_URL}. Please check your connection.`)
       })
 
     } catch (error) {

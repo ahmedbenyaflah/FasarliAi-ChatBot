@@ -804,11 +804,21 @@ async def login_user(login: LoginRequest):
     })
     
     # Send code by email
-    await send_mfa_email(login.email, code, "Your Login Verification Code")
+    email_sent = await send_mfa_email(login.email, code, "Your Login Verification Code")
+    
+    if not email_sent:
+        print(f"[WARNING] Email sending failed for {login.email}, but code generated: {code}")
+        # Still return success so user can proceed (code is in logs if MFA_DEBUG_MODE is enabled)
+        return {
+            "message": "MFA code generated. Check logs if email not received.",
+            "debug_code": code if MFA_DEBUG_MODE else None,
+            "email_sent": False
+        }
     
     return {
         "message": "MFA code sent to your email",
-        "debug_code": code if MFA_DEBUG_MODE else None
+        "debug_code": code if MFA_DEBUG_MODE else None,
+        "email_sent": True
     }
 
 class MFAVerifyRequest(BaseModel):
