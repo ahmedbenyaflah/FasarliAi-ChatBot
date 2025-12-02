@@ -13,9 +13,17 @@ import shutil
 import re
 from fastapi_mail import FastMail, MessageSchema, ConnectionConfig   
 
-# Load environment variables from backend directory
-env_path = Path(__file__).parent / ".env"
-load_dotenv(dotenv_path=env_path, override=True)
+# Load environment variables from root directory
+# First try root .env, then fall back to backend/.env for backwards compatibility
+root_env_path = Path(__file__).parent.parent / ".env"
+backend_env_path = Path(__file__).parent / ".env"
+
+# Load root .env if it exists (recommended)
+if root_env_path.exists():
+    load_dotenv(dotenv_path=root_env_path, override=True)
+# Fall back to backend/.env if root .env doesn't exist
+elif backend_env_path.exists():
+    load_dotenv(dotenv_path=backend_env_path, override=True)
 
 app = FastAPI(title="PDF ChatBot API")
 

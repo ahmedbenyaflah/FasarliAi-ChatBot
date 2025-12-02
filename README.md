@@ -18,18 +18,25 @@ venv\Scripts\activate
 pip install -r requirements.txt
    ```
 2. **Environment variables**
-   - `.env.local`
-     ```
-     NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-     NEXT_PUBLIC_BACKEND_URL=http://localhost:8000
-     ```
-   - `backend/.env`
-     ```
-     GROQ_API_KEY=your_groq_key
-     SUPABASE_URL=your_supabase_url
-     SUPABASE_SERVICE_ROLE_KEY=service_role_key
-     ```
+   
+   Create a single `.env` file in the root directory with all variables:
+   ```
+   # Frontend (Next.js) variables
+   NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+   NEXT_PUBLIC_BACKEND_URL=http://localhost:8000
+   
+   # Backend (FastAPI) variables
+   GROQ_API_KEY=your_groq_key
+   SUPABASE_URL=your_supabase_url
+   SUPABASE_SERVICE_ROLE_KEY=service_role_key
+   GOOGLE_EMAIL=your_email@gmail.com
+   GOOGLE_APP_PASSWORD=your_app_password
+   ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+   MFA_DEBUG_MODE=false
+   ```
+   
+   **Note:** The backend will automatically read from the root `.env` file. You can still use `backend/.env` for backwards compatibility, but the root `.env` is recommended.
 3. **Supabase prep**  
    Create a project, run the SQL in `supabase/migrations`, and make a private `pdfs` bucket (50 MB limit, PDF mime type).
 4. **Run it**
