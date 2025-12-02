@@ -229,7 +229,6 @@ function ResetPasswordContent() {
             Resend code
           </button>
         </div>
-      </div>
     </div>
   )
 }

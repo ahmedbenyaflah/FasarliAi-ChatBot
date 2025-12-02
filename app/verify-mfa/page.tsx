@@ -176,7 +176,6 @@ function VerifyMFAContent() {
             Back to sign in
           </button>
         </div>
-      </div>
     </div>
   )
 }
