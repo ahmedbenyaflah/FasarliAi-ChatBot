@@ -44,22 +44,29 @@ MFA_DEBUG_MODE = os.getenv("MFA_DEBUG_MODE", "false").lower() == "true"
 
 async def send_mfa_email(recipient: str, code: str, subject: str = "Your Login Verification Code") -> bool:
     """
-    Send MFA code via email. Falls back to console logging if email is not configured.
+    Send MFA code via email. Tries SMTP first, then falls back to HTTP API (Resend) if SMTP fails.
     Returns True if email was sent successfully, False otherwise.
     """
+    # Check if email credentials are configured
+    google_email = os.getenv("GOOGLE_EMAIL")
+    google_password = os.getenv("GOOGLE_APP_PASSWORD")
+    resend_api_key = os.getenv("RESEND_API_KEY")
+    
+    if not google_email or not google_password:
+        # Try Resend API if SMTP credentials not available
+        if resend_api_key:
+            return await send_mfa_email_via_resend(recipient, code, subject)
+        
+        print(f"[ERROR] Email credentials not configured!")
+        print(f"[ERROR] GOOGLE_EMAIL is set: {bool(google_email)}")
+        print(f"[ERROR] GOOGLE_APP_PASSWORD is set: {bool(google_password)}")
+        print(f"[ERROR] RESEND_API_KEY is set: {bool(resend_api_key)}")
+        print(f"[INFO] MFA code for {recipient}: {code} (check logs for code)")
+        return False
+    
+    # Try SMTP first
     try:
-        # Check if email credentials are configured
-        google_email = os.getenv("GOOGLE_EMAIL")
-        google_password = os.getenv("GOOGLE_APP_PASSWORD")
-        
-        if not google_email or not google_password:
-            print(f"[ERROR] Email credentials not configured!")
-            print(f"[ERROR] GOOGLE_EMAIL is set: {bool(google_email)}")
-            print(f"[ERROR] GOOGLE_APP_PASSWORD is set: {bool(google_password)}")
-            print(f"[INFO] MFA code for {recipient}: {code} (check logs for code)")
-            return False
-        
-        print(f"[DEBUG] Attempting to send email to {recipient} using {google_email}")
+        print(f"[DEBUG] Attempting to send email via SMTP to {recipient} using {google_email}")
         
         message = MessageSchema(
             subject=subject,
@@ -70,10 +77,17 @@ async def send_mfa_email(recipient: str, code: str, subject: str = "Your Login V
         
         fast_mail = FastMail(conf)
         await fast_mail.send_message(message)
-        print(f"[SUCCESS] MFA email sent successfully to {recipient}")
+        print(f"[SUCCESS] MFA email sent successfully via SMTP to {recipient}")
         return True
         
     except Exception as exc:
+        print(f"[WARNING] SMTP failed: {type(exc).__name__}: {str(exc)}")
+        print(f"[INFO] Attempting fallback to HTTP API (Resend)...")
+        
+        # Fallback to Resend API if SMTP fails
+        if resend_api_key:
+            return await send_mfa_email_via_resend(recipient, code, subject)
+        
         print(f"[ERROR] Failed to send MFA email to {recipient}")
         print(f"[ERROR] Exception type: {type(exc).__name__}")
         print(f"[ERROR] Exception message: {str(exc)}")
@@ -81,6 +95,60 @@ async def send_mfa_email(recipient: str, code: str, subject: str = "Your Login V
         import traceback
         traceback.print_exc()
         print(f"[DEBUG] MFA CODE for {recipient}: {code} (check logs for code)")
+        return False
+
+async def send_mfa_email_via_resend(recipient: str, code: str, subject: str = "Your Login Verification Code") -> bool:
+    """
+    Send MFA code via Resend API (HTTP-based, works on Render free tier).
+    Requires RESEND_API_KEY environment variable.
+    """
+    try:
+        import requests
+        import asyncio
+        
+        resend_api_key = os.getenv("RESEND_API_KEY")
+        if not resend_api_key:
+            print(f"[ERROR] RESEND_API_KEY not configured!")
+            return False
+        
+        resend_from_email = os.getenv("RESEND_FROM_EMAIL", "onboarding@resend.dev")
+        
+        print(f"[DEBUG] Attempting to send email via Resend API to {recipient}")
+        
+        # Run requests in thread pool to avoid blocking
+        def send_email_sync():
+            response = requests.post(
+                "https://api.resend.com/emails",
+                headers={
+                    "Authorization": f"Bearer {resend_api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "from": resend_from_email,
+                    "to": [recipient],
+                    "subject": subject,
+                    "text": f"Your verification code is: {code}\n\nThis code expires in 3 minutes.\n\nDo not share this code with anyone.",
+                },
+                timeout=20.0,
+            )
+            return response
+        
+        loop = asyncio.get_event_loop()
+        response = await loop.run_in_executor(None, send_email_sync)
+        
+        if response.status_code == 200:
+            print(f"[SUCCESS] MFA email sent successfully via Resend API to {recipient}")
+            return True
+        else:
+            print(f"[ERROR] Resend API returned status {response.status_code}: {response.text}")
+            return False
+                
+    except Exception as exc:
+        print(f"[ERROR] Failed to send MFA email via Resend API to {recipient}")
+        print(f"[ERROR] Exception type: {type(exc).__name__}")
+        print(f"[ERROR] Exception message: {str(exc)}")
+        import traceback
+        traceback.print_exc()
         return False
 
 # CORS middleware
