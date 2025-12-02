@@ -657,6 +657,27 @@ async def health():
     """Health check endpoint."""
     return {"status": "ok"}
 
+@app.get("/api/test-email-config")
+async def test_email_config():
+    """Test endpoint to check email configuration."""
+    google_email = os.getenv("GOOGLE_EMAIL")
+    google_password = os.getenv("GOOGLE_APP_PASSWORD")
+    
+    config_status = {
+        "GOOGLE_EMAIL_set": bool(google_email),
+        "GOOGLE_EMAIL_value": google_email if google_email else None,
+        "GOOGLE_APP_PASSWORD_set": bool(google_password),
+        "GOOGLE_APP_PASSWORD_length": len(google_password) if google_password else 0,
+        "GOOGLE_APP_PASSWORD_has_spaces": " " in google_password if google_password else None,
+        "MFA_DEBUG_MODE": MFA_DEBUG_MODE,
+    }
+    
+    return {
+        "status": "ok" if (google_email and google_password) else "error",
+        "message": "Email configured correctly" if (google_email and google_password) else "Email not configured",
+        "config": config_status
+    }
+
 # Password Reset Endpoints
 @app.post("/api/users/forgot-password")
 async def forgot_password(request: ForgotPasswordRequest):
