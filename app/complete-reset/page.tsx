@@ -1,42 +1,18 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Sun, Moon } from 'lucide-react'
 
-export default function CompleteResetPage() {
+function CompleteResetContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const email = searchParams.get('email')
   const [isProcessing, setIsProcessing] = useState(true)
-  const [isDarkMode, setIsDarkMode] = useState(false)
-  const videoRef = useRef<HTMLVideoElement>(null)
   const supabase = createClient()
-
-  useEffect(() => {
-    const isDark = document.documentElement.classList.contains('dark')
-    setIsDarkMode(isDark)
-    
-    // Force video to play
-    if (videoRef.current) {
-      videoRef.current.play().catch(err => console.log('Video autoplay failed:', err))
-    }
-  }, [])
-
-  const toggleTheme = () => {
-    const newMode = !isDarkMode
-    setIsDarkMode(newMode)
-    if (newMode) {
-      document.documentElement.classList.add('dark')
-      localStorage.setItem('theme', 'dark')
-    } else {
-      document.documentElement.classList.remove('dark')
-      localStorage.setItem('theme', 'light')
-    }
-  }
 
   useEffect(() => {
     const completeReset = async () => {
@@ -103,36 +79,7 @@ export default function CompleteResetPage() {
   }, [email, router, supabase.auth])
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden p-4">
-      {/* Background Video */}
-      <video
-        ref={videoRef}
-        autoPlay
-        loop
-        muted
-        playsInline
-        className="absolute inset-0 w-full h-full object-cover"
-      >
-        <source src="/videos/ai-background.mp4" type="video/mp4" />
-      </video>
-      
-      {/* Overlay with purple tint */}
-      <div className="absolute inset-0 bg-teal-950/80 dark:bg-teal-950/90" />
-      
-      {/* Theme Toggle Button */}
-      <button
-        onClick={toggleTheme}
-        className="fixed top-4 right-4 z-50 p-2 rounded-lg bg-teal-100 dark:bg-teal-900/40 hover:bg-teal-200 dark:hover:bg-teal-900/60 transition-colors"
-        aria-label="Toggle theme"
-      >
-        {isDarkMode ? (
-          <Sun className="h-5 w-5 text-teal-600 dark:text-teal-400" />
-        ) : (
-          <Moon className="h-5 w-5 text-teal-600 dark:text-teal-400" />
-        )}
-      </button>
-
-      <div className="relative z-10 w-full max-w-md space-y-8 rounded-lg border border-teal-500/20 bg-white/95 dark:bg-teal-950/95 backdrop-blur-md p-8 shadow-2xl text-center">
+    <div className="relative z-10 w-full max-w-md space-y-8 rounded-lg border border-teal-500/20 bg-white/95 dark:bg-teal-950/95 backdrop-blur-md p-8 shadow-2xl text-center">
         {isProcessing ? (
           <>
             <div className="space-y-2">
@@ -173,7 +120,78 @@ export default function CompleteResetPage() {
             </Button>
           </>
         )}
-      </div>
+    </div>
+  )
+}
+
+export default function CompleteResetPage() {
+  const [isDarkMode, setIsDarkMode] = useState(false)
+  const videoRef = useRef<HTMLVideoElement>(null)
+
+  useEffect(() => {
+    const isDark = document.documentElement.classList.contains('dark')
+    setIsDarkMode(isDark)
+    
+    // Force video to play
+    if (videoRef.current) {
+      videoRef.current.play().catch(err => console.log('Video autoplay failed:', err))
+    }
+  }, [])
+
+  const toggleTheme = () => {
+    const newMode = !isDarkMode
+    setIsDarkMode(newMode)
+    if (newMode) {
+      document.documentElement.classList.add('dark')
+      localStorage.setItem('theme', 'dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+      localStorage.setItem('theme', 'light')
+    }
+  }
+
+  return (
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden p-4">
+      {/* Background Video */}
+      <video
+        ref={videoRef}
+        autoPlay
+        loop
+        muted
+        playsInline
+        className="absolute inset-0 w-full h-full object-cover"
+      >
+        <source src="/videos/ai-background.mp4" type="video/mp4" />
+      </video>
+      
+      {/* Overlay with purple tint */}
+      <div className="absolute inset-0 bg-teal-950/80 dark:bg-teal-950/90" />
+      
+      {/* Theme Toggle Button */}
+      <button
+        onClick={toggleTheme}
+        className="fixed top-4 right-4 z-50 p-2 rounded-lg bg-teal-100 dark:bg-teal-900/40 hover:bg-teal-200 dark:hover:bg-teal-900/60 transition-colors"
+        aria-label="Toggle theme"
+      >
+        {isDarkMode ? (
+          <Sun className="h-5 w-5 text-teal-600 dark:text-teal-400" />
+        ) : (
+          <Moon className="h-5 w-5 text-teal-600 dark:text-teal-400" />
+        )}
+      </button>
+
+      <Suspense fallback={
+        <div className="relative z-10 w-full max-w-md space-y-8 rounded-lg border border-teal-500/20 bg-white/95 dark:bg-teal-950/95 backdrop-blur-md p-8 shadow-2xl text-center">
+          <div className="space-y-2">
+            <h1 className="text-3xl font-bold">Loading...</h1>
+            <div className="flex justify-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+            </div>
+          </div>
+        </div>
+      }>
+        <CompleteResetContent />
+      </Suspense>
     </div>
   )
 }
