@@ -28,15 +28,17 @@ elif backend_env_path.exists():
 app = FastAPI(title="PDF ChatBot API")
 
 # EMAIL CONFIG
+# Use port 587 with STARTTLS instead of 465 with SSL (better compatibility with Render)
 conf = ConnectionConfig(
     MAIL_USERNAME = os.getenv("GOOGLE_EMAIL"),   
     MAIL_PASSWORD = os.getenv("GOOGLE_APP_PASSWORD"), 
     MAIL_FROM = os.getenv("GOOGLE_EMAIL"),     
     MAIL_SERVER = "smtp.gmail.com",
-    MAIL_PORT = 465,
-    MAIL_STARTTLS = False,
-    MAIL_SSL_TLS = True,
-    USE_CREDENTIALS = True
+    MAIL_PORT = 587,  # Changed from 465 to 587
+    MAIL_STARTTLS = True,  # Changed from False to True
+    MAIL_SSL_TLS = False,  # Changed from True to False (STARTTLS uses TLS, not SSL)
+    USE_CREDENTIALS = True,
+    TIMEOUT = 20  # Increase timeout to 20 seconds
 )
 MFA_DEBUG_MODE = os.getenv("MFA_DEBUG_MODE", "false").lower() == "true"
 
