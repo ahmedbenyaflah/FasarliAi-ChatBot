@@ -107,13 +107,20 @@ export default function SignInPage() {
           email: values.email,
           password: values.password,
         }),
-      }).then(response => {
+      }).then(async response => {
         if (response.ok) {
-          console.log('MFA code sent successfully')
+          const data = await response.json()
+          console.log('MFA code sent successfully', data)
+          toast.success('Verification code sent to your email')
         } else {
-          console.error('Failed to send MFA code')
+          const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }))
+          console.error('Failed to send MFA code:', response.status, errorData)
+          toast.error(errorData.detail || 'Failed to send verification code. Please try again.')
         }
-      }).catch(err => console.error('Error sending MFA code:', err))
+      }).catch(err => {
+        console.error('Error sending MFA code:', err)
+        toast.error('Unable to connect to server. Please check your connection.')
+      })
 
     } catch (error) {
       setIsLoading(false)
