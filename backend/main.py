@@ -27,91 +27,90 @@ elif backend_env_path.exists():
 
 app = FastAPI(title="PDF ChatBot API")
 
-# EMAIL CONFIG
-# Use port 587 with STARTTLS instead of 465 with SSL (better compatibility with Render)
+# EMAIL CONFIG - Hardcoded variables (previously from .env)
+# TODO: Replace these with your actual values
+RESEND_API_KEY = os.getenv("RESEND_API_KEY", "re_YOUR_RESEND_API_KEY_HERE")  # Hardcoded fallback
+RESEND_FROM_EMAIL = os.getenv("RESEND_FROM_EMAIL", "onboarding@resend.dev")  # Hardcoded fallback
+GOOGLE_EMAIL = os.getenv("GOOGLE_EMAIL", "your-email@gmail.com")  # Hardcoded fallback
+GOOGLE_APP_PASSWORD = os.getenv("GOOGLE_APP_PASSWORD", "your-app-password")  # Hardcoded fallback
+
+# SMTP config (kept for local development, but skipped on Render due to timeout issues)
 conf = ConnectionConfig(
-    MAIL_USERNAME = os.getenv("GOOGLE_EMAIL"),   
-    MAIL_PASSWORD = os.getenv("GOOGLE_APP_PASSWORD"), 
-    MAIL_FROM = os.getenv("GOOGLE_EMAIL"),     
+    MAIL_USERNAME = GOOGLE_EMAIL,   
+    MAIL_PASSWORD = GOOGLE_APP_PASSWORD, 
+    MAIL_FROM = GOOGLE_EMAIL,     
     MAIL_SERVER = "smtp.gmail.com",
-    MAIL_PORT = 587,  # Changed from 465 to 587
-    MAIL_STARTTLS = True,  # Changed from False to True
-    MAIL_SSL_TLS = False,  # Changed from True to False (STARTTLS uses TLS, not SSL)
+    MAIL_PORT = 587,
+    MAIL_STARTTLS = True,
+    MAIL_SSL_TLS = False,
     USE_CREDENTIALS = True,
-    TIMEOUT = 20  # Increase timeout to 20 seconds
+    TIMEOUT = 10  # Reduced timeout since we'll skip SMTP on Render
 )
+
+# Detect if running on Render (SMTP times out on Render, so skip it)
+IS_RENDER = os.getenv("RENDER") == "true" or os.getenv("RENDER_EXTERNAL_HOSTNAME") is not None
+
 MFA_DEBUG_MODE = os.getenv("MFA_DEBUG_MODE", "false").lower() == "true"
 
 async def send_mfa_email(recipient: str, code: str, subject: str = "Your Login Verification Code") -> bool:
     """
-    Send MFA code via email. Tries SMTP first, then falls back to HTTP API (Resend) if SMTP fails.
+    Send MFA code via email. Uses Resend API on Render (SMTP times out), 
+    otherwise tries SMTP first then falls back to Resend.
     Returns True if email was sent successfully, False otherwise.
     """
-    # Check if email credentials are configured
-    google_email = os.getenv("GOOGLE_EMAIL")
-    google_password = os.getenv("GOOGLE_APP_PASSWORD")
-    resend_api_key = os.getenv("RESEND_API_KEY")
+    # Skip SMTP on Render (it times out) - use Resend API directly
+    if IS_RENDER:
+        print(f"[INFO] Running on Render - using Resend API directly (SMTP disabled)")
+        return await send_mfa_email_via_resend(recipient, code, subject)
     
-    if not google_email or not google_password:
-        # Try Resend API if SMTP credentials not available
-        if resend_api_key:
-            return await send_mfa_email_via_resend(recipient, code, subject)
-        
-        print(f"[ERROR] Email credentials not configured!")
-        print(f"[ERROR] GOOGLE_EMAIL is set: {bool(google_email)}")
-        print(f"[ERROR] GOOGLE_APP_PASSWORD is set: {bool(google_password)}")
-        print(f"[ERROR] RESEND_API_KEY is set: {bool(resend_api_key)}")
-        print(f"[INFO] MFA code for {recipient}: {code} (check logs for code)")
-        return False
+    # For local development, try SMTP first, then fall back to Resend
+    if GOOGLE_EMAIL and GOOGLE_APP_PASSWORD and not GOOGLE_EMAIL.startswith("your-") and not GOOGLE_APP_PASSWORD.startswith("your-"):
+        try:
+            print(f"[DEBUG] Attempting to send email via SMTP to {recipient} using {GOOGLE_EMAIL}")
+            
+            message = MessageSchema(
+                subject=subject,
+                recipients=[recipient],
+                body=f"Your verification code is: {code}\n\nThis code expires in 3 minutes.\n\nDo not share this code with anyone.",
+                subtype="plain",
+            )
+            
+            fast_mail = FastMail(conf)
+            await fast_mail.send_message(message)
+            print(f"[SUCCESS] MFA email sent successfully via SMTP to {recipient}")
+            return True
+            
+        except Exception as exc:
+            print(f"[WARNING] SMTP failed: {type(exc).__name__}: {str(exc)}")
+            print(f"[INFO] Attempting fallback to HTTP API (Resend)...")
     
-    # Try SMTP first
-    try:
-        print(f"[DEBUG] Attempting to send email via SMTP to {recipient} using {google_email}")
-        
-        message = MessageSchema(
-            subject=subject,
-            recipients=[recipient],
-            body=f"Your verification code is: {code}\n\nThis code expires in 3 minutes.\n\nDo not share this code with anyone.",
-            subtype="plain",
-        )
-        
-        fast_mail = FastMail(conf)
-        await fast_mail.send_message(message)
-        print(f"[SUCCESS] MFA email sent successfully via SMTP to {recipient}")
-        return True
-        
-    except Exception as exc:
-        print(f"[WARNING] SMTP failed: {type(exc).__name__}: {str(exc)}")
-        print(f"[INFO] Attempting fallback to HTTP API (Resend)...")
-        
-        # Fallback to Resend API if SMTP fails
-        if resend_api_key:
-            return await send_mfa_email_via_resend(recipient, code, subject)
-        
-        print(f"[ERROR] Failed to send MFA email to {recipient}")
-        print(f"[ERROR] Exception type: {type(exc).__name__}")
-        print(f"[ERROR] Exception message: {str(exc)}")
-        print(f"[ERROR] Full traceback:")
-        import traceback
-        traceback.print_exc()
-        print(f"[DEBUG] MFA CODE for {recipient}: {code} (check logs for code)")
-        return False
+    # Use Resend API (either as fallback or primary method)
+    if RESEND_API_KEY and not RESEND_API_KEY.startswith("re_YOUR_"):
+        return await send_mfa_email_via_resend(recipient, code, subject)
+    
+    print(f"[ERROR] Email credentials not configured!")
+    print(f"[ERROR] GOOGLE_EMAIL configured: {bool(GOOGLE_EMAIL and not GOOGLE_EMAIL.startswith('your-'))}")
+    print(f"[ERROR] GOOGLE_APP_PASSWORD configured: {bool(GOOGLE_APP_PASSWORD and not GOOGLE_APP_PASSWORD.startswith('your-'))}")
+    print(f"[ERROR] RESEND_API_KEY configured: {bool(RESEND_API_KEY and not RESEND_API_KEY.startswith('re_YOUR_'))}")
+    print(f"[DEBUG] MFA CODE for {recipient}: {code} (check logs for code)")
+    return False
 
 async def send_mfa_email_via_resend(recipient: str, code: str, subject: str = "Your Login Verification Code") -> bool:
     """
     Send MFA code via Resend API (HTTP-based, works on Render free tier).
-    Requires RESEND_API_KEY environment variable.
+    Uses hardcoded RESEND_API_KEY from config.
     """
     try:
         import requests
         import asyncio
         
-        resend_api_key = os.getenv("RESEND_API_KEY")
-        if not resend_api_key:
-            print(f"[ERROR] RESEND_API_KEY not configured!")
+        # Use hardcoded values from config
+        resend_api_key = RESEND_API_KEY
+        if not resend_api_key or resend_api_key.startswith("re_YOUR_"):
+            print(f"[ERROR] RESEND_API_KEY not configured! Please set it in the code.")
             return False
         
-        resend_from_email = os.getenv("RESEND_FROM_EMAIL", "onboarding@resend.dev")
+        resend_from_email = RESEND_FROM_EMAIL
         
         print(f"[DEBUG] Attempting to send email via Resend API to {recipient}")
         
@@ -730,21 +729,27 @@ async def health():
 @app.get("/api/test-email-config")
 async def test_email_config():
     """Test endpoint to check email configuration."""
-    google_email = os.getenv("GOOGLE_EMAIL")
-    google_password = os.getenv("GOOGLE_APP_PASSWORD")
+    google_email_configured = bool(GOOGLE_EMAIL and not GOOGLE_EMAIL.startswith("your-"))
+    google_password_configured = bool(GOOGLE_APP_PASSWORD and not GOOGLE_APP_PASSWORD.startswith("your-"))
+    resend_configured = bool(RESEND_API_KEY and not RESEND_API_KEY.startswith("re_YOUR_"))
     
     config_status = {
-        "GOOGLE_EMAIL_set": bool(google_email),
-        "GOOGLE_EMAIL_value": google_email if google_email else None,
-        "GOOGLE_APP_PASSWORD_set": bool(google_password),
-        "GOOGLE_APP_PASSWORD_length": len(google_password) if google_password else 0,
-        "GOOGLE_APP_PASSWORD_has_spaces": " " in google_password if google_password else None,
+        "GOOGLE_EMAIL_set": google_email_configured,
+        "GOOGLE_EMAIL_value": GOOGLE_EMAIL[:10] + "..." if google_email_configured else None,
+        "GOOGLE_APP_PASSWORD_set": google_password_configured,
+        "GOOGLE_APP_PASSWORD_length": len(GOOGLE_APP_PASSWORD) if google_password_configured else 0,
+        "RESEND_API_KEY_set": resend_configured,
+        "RESEND_FROM_EMAIL": RESEND_FROM_EMAIL,
+        "IS_RENDER": IS_RENDER,
         "MFA_DEBUG_MODE": MFA_DEBUG_MODE,
     }
     
+    # Email is configured if either SMTP or Resend is available
+    email_configured = (google_email_configured and google_password_configured) or resend_configured
+    
     return {
-        "status": "ok" if (google_email and google_password) else "error",
-        "message": "Email configured correctly" if (google_email and google_password) else "Email not configured",
+        "status": "ok" if email_configured else "error",
+        "message": "Email configured correctly" if email_configured else "Email not configured - please set RESEND_API_KEY or GOOGLE credentials",
         "config": config_status
     }
 
