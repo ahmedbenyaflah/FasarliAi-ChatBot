@@ -47,9 +47,17 @@ async def send_mfa_email(recipient: str, code: str, subject: str = "Your Login V
     """
     try:
         # Check if email credentials are configured
-        if not os.getenv("GOOGLE_EMAIL") or not os.getenv("GOOGLE_APP_PASSWORD"):
-            print(f"[INFO] Email not configured. MFA code for {recipient}: {code}")
+        google_email = os.getenv("GOOGLE_EMAIL")
+        google_password = os.getenv("GOOGLE_APP_PASSWORD")
+        
+        if not google_email or not google_password:
+            print(f"[ERROR] Email credentials not configured!")
+            print(f"[ERROR] GOOGLE_EMAIL is set: {bool(google_email)}")
+            print(f"[ERROR] GOOGLE_APP_PASSWORD is set: {bool(google_password)}")
+            print(f"[INFO] MFA code for {recipient}: {code} (check logs for code)")
             return False
+        
+        print(f"[DEBUG] Attempting to send email to {recipient} using {google_email}")
         
         message = MessageSchema(
             subject=subject,
@@ -60,12 +68,17 @@ async def send_mfa_email(recipient: str, code: str, subject: str = "Your Login V
         
         fast_mail = FastMail(conf)
         await fast_mail.send_message(message)
-        print(f"[INFO] MFA email sent successfully to {recipient}")
+        print(f"[SUCCESS] MFA email sent successfully to {recipient}")
         return True
         
     except Exception as exc:
-        print(f"[WARN] Unable to send MFA email to {recipient}: {exc}")
-        print(f"[DEBUG] MFA CODE for {recipient}: {code}")
+        print(f"[ERROR] Failed to send MFA email to {recipient}")
+        print(f"[ERROR] Exception type: {type(exc).__name__}")
+        print(f"[ERROR] Exception message: {str(exc)}")
+        print(f"[ERROR] Full traceback:")
+        import traceback
+        traceback.print_exc()
+        print(f"[DEBUG] MFA CODE for {recipient}: {code} (check logs for code)")
         return False
 
 # CORS middleware
