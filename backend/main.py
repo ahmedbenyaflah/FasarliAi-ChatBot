@@ -31,8 +31,8 @@ app = FastAPI(title="PDF ChatBot API")
 # TODO: Replace these with your actual values
 RESEND_API_KEY = os.getenv("RESEND_API_KEY", "re_YOUR_RESEND_API_KEY_HERE")  # Hardcoded fallback
 RESEND_FROM_EMAIL = os.getenv("RESEND_FROM_EMAIL", "onboarding@resend.dev")  # Hardcoded fallback
-GOOGLE_EMAIL = os.getenv("GOOGLE_EMAIL", "your-email@gmail.com")  # Hardcoded fallback
-GOOGLE_APP_PASSWORD = os.getenv("GOOGLE_APP_PASSWORD", "your-app-password")  # Hardcoded fallback
+GOOGLE_EMAIL = os.getenv("GOOGLE_EMAIL", "ahmedbenyaflah42@gmail.com")  # Hardcoded fallback
+GOOGLE_APP_PASSWORD = os.getenv("GOOGLE_APP_PASSWORD", "hrcmzyzjltclvvys")  # Hardcoded fallback
 
 # SMTP config (kept for local development, but skipped on Render due to timeout issues)
 conf = ConnectionConfig(
