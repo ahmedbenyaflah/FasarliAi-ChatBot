@@ -1,0 +1,15 @@
+[phases.setup]
+nixPkgs = ["python311"]
+
+[phases.install]
+cmds = [
+  "pip install --upgrade pip",
+  "pip install -r requirements.txt"
+]
+
+[phases.build]
+cmds = []
+
+# Note: Start command is set in Railway Settings → Deploy
+# This prevents mise from trying to install Python
+
