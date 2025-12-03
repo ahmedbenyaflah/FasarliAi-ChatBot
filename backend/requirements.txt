@@ -8,14 +8,15 @@ pypdf  # PDF text extraction
 
 # LangChain Ecosystem
 langchain  # Core LangChain framework
-langchain-community  # Community integrations (HuggingFace embeddings, FAISS)
+langchain-community  # Community integrations (FAISS vector stores)
 langchain-classic  # Classic LangChain chains (RetrievalQA)
 langchain-groq  # Groq LLM integration
+langchain-openai  # OpenAI embeddings API integration
 langchain-text-splitters  # Text chunking utilities
 
-# Machine Learning & Embeddings
-sentence-transformers  # HuggingFace sentence transformers for embeddings
+# Vector Storage
 faiss-cpu  # Facebook AI Similarity Search for vector storage (CPU version)
+# Note: sentence-transformers removed - using OpenAI API for embeddings instead (much smaller image size)
 
 # Environment Variables
 python-dotenv  # Load environment variables from .env file
