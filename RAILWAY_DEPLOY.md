@@ -40,14 +40,15 @@ This guide will walk you through deploying both the Next.js frontend and FastAPI
      GMAIL_APP_PASSWORD=your_gmail_app_password
      ALLOWED_ORIGINS=https://your-frontend-url.up.railway.app,http://localhost:3000
      MFA_DEBUG_MODE=false
-     PORT=8000
      ```
-   - Railway will auto-set `PORT` - you can override if needed
+   - **Note:** Railway automatically sets the `PORT` environment variable - you don't need to set it manually
 
-5. **Set Backend Start Command**
+5. **Set Backend Root Directory and Start Command**
    - Go to **Settings** → **Deploy**
-   - Set **Start Command**: `cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT`
-   - Or if backend is root: `uvicorn main:app --host 0.0.0.0 --port $PORT`
+   - Set **Root Directory** to `backend` (this tells Railway where your backend code is)
+   - Set **Start Command**: `uvicorn main:app --host 0.0.0.0 --port $PORT`
+   - **Note:** Railway will automatically use the `PORT` environment variable it provides
+   - **Alternative:** If you don't set Root Directory, use: `cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT`
 
 6. **Deploy Frontend Service**
    - Click **"Add Service"** → **"GitHub Repo"**
@@ -84,8 +85,10 @@ This guide will walk you through deploying both the Next.js frontend and FastAPI
 ### Backend Service (FastAPI)
 
 **Build Settings:**
-- **Build Command:** `pip install -r backend/requirements.txt` (auto-detected)
-- **Start Command:** `cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT`
+- **Root Directory:** `backend` (set in Settings → Deploy)
+- **Build Command:** `pip install -r requirements.txt` (auto-detected when root directory is set)
+- **Start Command:** `uvicorn main:app --host 0.0.0.0 --port $PORT`
+- **Note:** Railway automatically provides the `PORT` environment variable
 
 **Required Environment Variables:**
 - `GROQ_API_KEY` - Your Groq API key
@@ -167,9 +170,12 @@ This guide will walk you through deploying both the Next.js frontend and FastAPI
 - Ensure Python 3.11 is available (Railway auto-detects)
 
 ### Frontend Can't Connect to Backend
-- Verify `NEXT_PUBLIC_BACKEND_URL` is set correctly
-- Check backend CORS includes frontend URL
-- Ensure backend service is running
+- Verify `NEXT_PUBLIC_BACKEND_URL` is set correctly (should be your Railway backend URL, not localhost)
+- Check backend CORS includes frontend URL in `ALLOWED_ORIGINS`
+- Ensure backend service is running (check Railway logs)
+- Verify backend health endpoint: `curl https://your-backend.up.railway.app/api/health`
+- Make sure both services have generated public domains (Settings → Networking → Generate Domain)
+- Check browser console for CORS errors - if you see CORS errors, update `ALLOWED_ORIGINS` in backend environment variables
 
 ### Build Fails
 - Check Railway build logs

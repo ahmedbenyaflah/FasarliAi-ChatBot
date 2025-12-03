@@ -3,7 +3,7 @@ import { getAuthenticatedUser } from '@/lib/supabase/server-auth'
 import { downloadPDFFromStorage } from '@/lib/supabase/storage'
 import { getPDFByConversationServer, updatePDFServer } from '@/lib/supabase/database-server'
 
-const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8000'
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000'
 
 /**
  * POST /api/conversations/reload-pdf

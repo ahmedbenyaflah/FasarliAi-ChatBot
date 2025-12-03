@@ -155,8 +155,13 @@ If you didn't request this code, please ignore this email.
 
 # CORS middleware
 # Get allowed origins from environment variable or default to localhost
+# For Railway deployment, set ALLOWED_ORIGINS to include your frontend URL
 allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000")
-allowed_origins = [origin.strip() for origin in allowed_origins_env.split(",")]
+allowed_origins = [origin.strip() for origin in allowed_origins_env.split(",") if origin.strip()]
+
+# Log CORS configuration for debugging
+print(f"[INFO] CORS allowed origins: {allowed_origins}")
+print(f"[INFO] Server starting on port: {os.getenv('PORT', '8000')}")
 
 app.add_middleware(
     CORSMiddleware,
@@ -726,8 +731,13 @@ async def generate_flashcards(request: FlashcardRequest):
 
 @app.get("/api/health")
 async def health():
-    """Health check endpoint."""
-    return {"status": "ok"}
+    """Health check endpoint for Railway and monitoring."""
+    return {
+        "status": "ok",
+        "service": "FasarliAI Backend",
+        "port": os.getenv("PORT", "8000"),
+        "cors_origins": len(allowed_origins)
+    }
 
 @app.get("/api/test-email-config")
 async def test_email_config():
@@ -939,5 +949,7 @@ def verify_user_code(verify_request: MFAVerifyRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    # Use PORT from environment variable (Railway provides this) or default to 8000
+    port = int(os.getenv("PORT", "8000"))
+    uvicorn.run(app, host="0.0.0.0", port=port)
 

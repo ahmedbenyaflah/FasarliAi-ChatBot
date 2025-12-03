@@ -83,14 +83,16 @@ function VerifyMFAContent() {
           email: email,
           code: values.code,
         }),
+        signal: AbortSignal.timeout(10000), // 10 second timeout
       })
 
-      const data = await response.json()
-
       if (!response.ok) {
-        toast.error(data.detail || 'Invalid verification code')
+        const errorData = await response.json().catch(() => ({ detail: 'Invalid verification code' }))
+        toast.error(errorData.detail || 'Invalid verification code')
         return
       }
+
+      const data = await response.json()
 
       // MFA verified, now authenticate with Supabase
       const pendingAuth = sessionStorage.getItem('pending_auth')
@@ -109,8 +111,15 @@ function VerifyMFAContent() {
 
       toast.success('Verification successful!')
       router.push('/')
-    } catch (error) {
-      toast.error('An error occurred during verification')
+    } catch (error: any) {
+      console.error('Verification error:', error)
+      if (error.name === 'TimeoutError') {
+        toast.error('Request timed out. Please try again.')
+      } else if (error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError')) {
+        toast.error(`Cannot connect to backend at ${BACKEND_URL}. Please ensure the backend server is running.`)
+      } else {
+        toast.error('An error occurred during verification. Please try again.')
+      }
     } finally {
       setIsLoading(false)
     }
