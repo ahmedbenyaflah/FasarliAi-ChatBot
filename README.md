@@ -30,10 +30,18 @@ pip install -r requirements.txt
    GROQ_API_KEY=your_groq_key
    SUPABASE_URL=your_supabase_url
    SUPABASE_SERVICE_ROLE_KEY=service_role_key
-   GOOGLE_EMAIL=your_email@gmail.com
-   GOOGLE_APP_PASSWORD=your_app_password
+   RESEND_API_KEY=your_resend_api_key
+   RESEND_FROM_EMAIL=onboarding@resend.dev (or your verified domain - see RESEND_SETUP.md)
+   RESEND_FROM_NAME=FasarliAI (optional, defaults to FasarliAI)
    ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
    MFA_DEBUG_MODE=false
+   
+   # Note: With onboarding@resend.dev, you can only send to your verified Resend account email.
+   # To send to any email: verify your domain at https://resend.com/domains
+   # FREE option: Get a free domain from Freenom (.tk, .ml, etc.) - see FREE_EMAIL_SETUP.md
+   # Or use a cheap domain ($1-3/year) - see RESEND_SETUP.md for detailed instructions.
+   
+   **Deployment:** See RAILWAY_DEPLOY.md or DEPLOYMENT.md for Railway deployment instructions.
    ```
    
    **Note:** The backend will automatically read from the root `.env` file. You can still use `backend/.env` for backwards compatibility, but the root `.env` is recommended.
@@ -56,5 +64,5 @@ npm run dev
 - Dashboard cards for activity, document library management, and conversation shortcuts.
 - Theme persistence, MFA-ready auth, polished gradients/video backgrounds, and tidy scroll areas.
 
-Deploy the FastAPI service wherever you like, point `NEXT_PUBLIC_BACKEND_URL` to it, and Supabase handles auth plus storage. Contributions welcome!
+Deploy to Railway (see `DEPLOYMENT.md` or `RAILWAY_DEPLOY.md`), point `NEXT_PUBLIC_BACKEND_URL` to your backend service, and Supabase handles auth plus storage. Contributions welcome!
 

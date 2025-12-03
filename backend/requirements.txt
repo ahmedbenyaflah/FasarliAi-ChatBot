@@ -21,7 +21,7 @@ faiss-cpu  # Facebook AI Similarity Search for vector storage (CPU version)
 python-dotenv  # Load environment variables from .env file
 
 # Email Functionality
-# Using Gmail SMTP with app password - no additional packages needed (uses built-in smtplib)
+# Using Resend API (works with Supabase, no SMTP blocking on Railway) - requests library is already included above
 
 # Web Scraping & Search
 beautifulsoup4  # HTML parsing for web scraping

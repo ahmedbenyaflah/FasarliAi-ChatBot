@@ -159,80 +159,24 @@ This guide will walk you through deploying both the Next.js frontend and FastAPI
    - Try signing up/logging in
    - Test PDF upload
 
-## Important Notes
-
-### Free Tier Limitations
-
-- **Railway Free Tier:** $5 credit/month (usually enough for small apps)
-- **No spin-down:** Services stay running (unlike some free tiers)
-- **Upgrade:** Consider upgrading for production use
-
-### Environment Variables Security
-
-- Never commit `.env` files to your repository
-- Use Railway's environment variable management
-- Keep sensitive keys secure
-
-### CORS Configuration
-
-The backend supports multiple origins via the `ALLOWED_ORIGINS` environment variable. Format:
-```
-ALLOWED_ORIGINS=https://frontend1.up.railway.app,https://frontend2.up.railway.app,http://localhost:3000
-```
-
-### Database Considerations
-
-- The backend uses in-memory storage for vector stores (not persistent)
-- For production, consider using a persistent vector database (e.g., Pinecone, Weaviate, or Supabase with pgvector)
-- Chat histories are also in-memory and will be lost on restart
-
-### Email Testing on Railway
-
-After deployment, test your email functionality:
-
-1. **Test Email Configuration:**
-   ```bash
-   curl https://your-backend.up.railway.app/api/test-email-config
-   ```
-
-2. **Send Test Email:**
-   ```bash
-   curl -X POST https://your-backend.up.railway.app/api/test-email-send
-   ```
-
-3. **Check Logs:**
-   - Go to Railway dashboard → Your backend service → Logs
-   - Look for email sending status and any error messages
-
-**Important:** 
-- ✅ Resend API works perfectly on Railway (uses HTTP, not SMTP - no port blocking)
-- ⚠️ Free tier limitation: Can only send to your verified Resend account email with `onboarding@resend.dev`
-- 🚀 For production: Verify your domain in Resend at https://resend.com/domains to send to any recipient
-
 ## Troubleshooting
 
-### Backend won't start
-- Check that all environment variables are set
-- Verify the build command completes successfully
-- Check logs for Python import errors
+### Backend Won't Start
+- Check all environment variables are set
+- Verify build logs for errors
 - Ensure Python 3.11 is available (Railway auto-detects)
 
-### Frontend can't connect to backend
+### Frontend Can't Connect to Backend
 - Verify `NEXT_PUBLIC_BACKEND_URL` is set correctly
-- Check backend CORS settings include frontend URL
+- Check backend CORS includes frontend URL
 - Ensure backend service is running
 
-### CORS errors
-- Update `ALLOWED_ORIGINS` in backend environment variables
-- Include both production and development URLs
-- Restart the backend service after updating
+### Build Fails
+- Check Railway build logs
+- Verify all dependencies in `requirements.txt` and `package.json`
+- Check for Python/Node version issues
 
-### Build failures
-- Check Node.js/Python version compatibility
-- Verify all dependencies are in `package.json` and `requirements.txt`
-- Review build logs for specific errors
-
-### Email not sending
+### Email Not Sending
 - Verify `RESEND_API_KEY` is set
 - Check `RESEND_FROM_EMAIL` is correct
 - Test with `/api/test-email-send` endpoint
@@ -254,16 +198,9 @@ Railway supports custom domains:
 - **Metrics:** CPU, Memory, Network usage
 - **Deployments:** View deployment history and rollback if needed
 
-## Next Steps
-
-- Set up custom domains for both services
-- Configure SSL certificates (automatic with Railway)
-- Set up monitoring and alerts
-- Consider upgrading to paid plans for better performance
-- Implement persistent storage for vector stores and chat histories
-
 ## Need Help?
 
 - **Railway Docs:** https://docs.railway.app
 - **Railway Discord:** https://discord.gg/railway
 - **Check logs:** Railway dashboard → Your service → Logs tab
+
