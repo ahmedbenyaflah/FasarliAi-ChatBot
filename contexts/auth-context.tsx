@@ -58,27 +58,79 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const verifyPassword = async (email: string, password: string) => {
-    // Create a temporary client to verify credentials without persisting session
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
-    
-    if (error) {
-      return { valid: false, error }
+    try {
+      // Create a temporary client to verify credentials without persisting session
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+      
+      if (error) {
+        // Check if it's a network error (missing env vars)
+        if (error.message?.includes('Failed to fetch') || error.message?.includes('fetch')) {
+          console.error('❌ Network error: Check if Supabase environment variables are set correctly')
+          return { 
+            valid: false, 
+            error: {
+              ...error,
+              message: 'Unable to connect to authentication service. Please check your configuration.'
+            }
+          }
+        }
+        return { valid: false, error }
+      }
+      
+      // Immediately sign out to prevent session creation
+      await supabase.auth.signOut()
+      return { valid: true }
+    } catch (err: any) {
+      // Catch network errors
+      if (err?.message?.includes('fetch') || err?.message?.includes('Failed to fetch')) {
+        console.error('❌ Network error during password verification:', err)
+        return {
+          valid: false,
+          error: {
+            message: 'Network error: Unable to connect to authentication service. Please check your Supabase configuration.',
+            name: 'NetworkError'
+          }
+        }
+      }
+      throw err
     }
-    
-    // Immediately sign out to prevent session creation
-    await supabase.auth.signOut()
-    return { valid: true }
   }
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
-    return { error }
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+      
+      // Check if it's a network error (missing env vars)
+      if (error && (error.message?.includes('Failed to fetch') || error.message?.includes('fetch'))) {
+        console.error('❌ Network error: Check if Supabase environment variables are set correctly')
+        return {
+          error: {
+            ...error,
+            message: 'Unable to connect to authentication service. Please check your configuration.'
+          }
+        }
+      }
+      
+      return { error }
+    } catch (err: any) {
+      // Catch network errors
+      if (err?.message?.includes('fetch') || err?.message?.includes('Failed to fetch')) {
+        console.error('❌ Network error during sign in:', err)
+        return {
+          error: {
+            message: 'Network error: Unable to connect to authentication service. Please check your Supabase configuration.',
+            name: 'NetworkError'
+          }
+        }
+      }
+      throw err
+    }
   }
 
   const signOut = async () => {
