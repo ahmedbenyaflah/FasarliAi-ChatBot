@@ -31,7 +31,7 @@ NODE_ENV=production
 Set these in your **Backend Service** → Variables tab:
 
 ```
-GROQ_API_KEY=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
+GROQ_API_KEY=gsk_NAgxyWYOtjqM
 SUPABASE_URL=https://fmvudazvwqfuiszomvcu.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 GOOGLE_EMAIL=your_email@gmail.com
