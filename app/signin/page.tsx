@@ -103,29 +103,6 @@ export default function SignInPage() {
       console.log('Request URL:', `${BACKEND_URL}/api/users/login`)
       console.log('Request payload:', { email: values.email, password: '***' })
       
-      // First check if backend is reachable
-      try {
-        const healthCheck = await fetch(`${BACKEND_URL}/api/health`, {
-          method: 'GET',
-          signal: AbortSignal.timeout(5000), // 5 second timeout
-        })
-        
-        if (!healthCheck.ok) {
-          console.error('Backend health check failed:', healthCheck.status)
-          toast.error(`Backend server is not responding correctly (Status: ${healthCheck.status}). Please ensure the backend server is running.`)
-          return
-        }
-      } catch (healthError: any) {
-        console.error('Backend health check failed:', healthError)
-        const errorMessage = healthError.name === 'TimeoutError' 
-          ? 'Backend server is not responding. Please ensure the backend server is running and accessible.'
-          : `Cannot connect to backend at ${BACKEND_URL}. Please ensure the backend server is running.`
-        toast.error(errorMessage)
-        setIsLoading(false)
-        setIsVerifying(false)
-        return
-      }
-      
       fetch(`${BACKEND_URL}/api/users/login`, {
         method: 'POST',
         headers: {
@@ -135,7 +112,6 @@ export default function SignInPage() {
           email: values.email,
           password: values.password,
         }),
-        signal: AbortSignal.timeout(30000), // 30 second timeout for email sending
       }).then(async response => {
         console.log('Backend response status:', response.status)
         console.log('Backend URL:', BACKEND_URL)
@@ -143,14 +119,7 @@ export default function SignInPage() {
         if (response.ok) {
           const data = await response.json()
           console.log('MFA code sent successfully', data)
-          if (data.email_sent) {
-            toast.success('Verification code sent to your email')
-          } else {
-            toast.warning('Login request received, but email delivery failed. Please check your email configuration.')
-            if (data.debug_code) {
-              console.log('Debug code:', data.debug_code)
-            }
-          }
+          toast.success('Verification code sent to your email')
         } else {
           const errorText = await response.text()
           console.error('Failed to send MFA code - Status:', response.status)
@@ -169,24 +138,7 @@ export default function SignInPage() {
       }).catch(err => {
         console.error('Network error sending MFA code:', err)
         console.error('Backend URL attempted:', BACKEND_URL)
-        console.error('Error details:', {
-          name: err.name,
-          message: err.message,
-          stack: err.stack
-        })
-        
-        let errorMessage = `Unable to connect to server at ${BACKEND_URL}. `
-        if (err.name === 'TimeoutError') {
-          errorMessage += 'Request timed out. The backend may be slow or unresponsive.'
-        } else if (err.message.includes('Failed to fetch') || err.message.includes('NetworkError')) {
-          errorMessage += 'Please ensure the backend server is running on port 8000.'
-        } else {
-          errorMessage += `Error: ${err.message}`
-        }
-        
-        toast.error(errorMessage)
-        setIsLoading(false)
-        setIsVerifying(false)
+        toast.error(`Unable to connect to server at ${BACKEND_URL}. Please check your connection.`)
       })
 
     } catch (error) {

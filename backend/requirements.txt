@@ -23,3 +23,8 @@ python-dotenv  # Load environment variables from .env file
 # Email Functionality
 # Using Gmail SMTP with app password - no additional packages needed (uses built-in smtplib)
 
+# Web Scraping & Search
+beautifulsoup4  # HTML parsing for web scraping
+requests  # HTTP requests for web scraping
+duckduckgo-search  # DuckDuckGo search API for finding sources
+

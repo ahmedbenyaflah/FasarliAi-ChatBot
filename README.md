@@ -38,7 +38,7 @@ pip install -r requirements.txt
    # Note: Get Gmail App Password from https://myaccount.google.com/apppasswords
    # Gmail allows sending to any email address - no domain verification needed!
    
-   **Deployment:** See RAILWAY_DEPLOY.md or DEPLOYMENT.md for Railway deployment instructions.
+   **Deployment:** See `RAILWAY_QUICK_START.md` for Railway deployment instructions.
    ```
    
    **Note:** The backend will automatically read from the root `.env` file. You can still use `backend/.env` for backwards compatibility, but the root `.env` is recommended.
@@ -61,5 +61,5 @@ npm run dev
 - Dashboard cards for activity, document library management, and conversation shortcuts.
 - Theme persistence, MFA-ready auth, polished gradients/video backgrounds, and tidy scroll areas.
 
-Deploy to Railway (see `DEPLOYMENT.md` or `RAILWAY_DEPLOY.md`), point `NEXT_PUBLIC_BACKEND_URL` to your backend service, and Supabase handles auth plus storage. Contributions welcome!
+Deploy to Railway (see `RAILWAY_QUICK_START.md`), point `NEXT_PUBLIC_BACKEND_URL` to your backend service, and Supabase handles auth plus storage. Contributions welcome!
 

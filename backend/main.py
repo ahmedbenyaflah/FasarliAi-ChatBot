@@ -375,15 +375,22 @@ async def upload_pdf(file: UploadFile = File(...), session_id: Optional[str] = F
         
         # Import ML libraries only when needed
         from langchain_text_splitters import RecursiveCharacterTextSplitter
-        from langchain_community.embeddings import HuggingFaceEmbeddings
+        from langchain_openai import OpenAIEmbeddings
         from langchain_community.vectorstores import FAISS
         
         # Split text into chunks with PDF name as metadata
         splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
         chunks = splitter.split_text(text)
         
-        # Create embeddings
-        embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+        # Create embeddings using OpenAI API (much smaller image size - ~1 GB vs 8.6 GB)
+        # OpenAI embeddings are very cheap: ~$0.0001 per 1K tokens
+        openai_api_key = os.getenv("OPENAI_API_KEY")
+        if not openai_api_key:
+            raise HTTPException(
+                status_code=500, 
+                detail="OPENAI_API_KEY not configured. Required for embeddings. Get one at https://platform.openai.com/api-keys"
+            )
+        embeddings = OpenAIEmbeddings(openai_api_key=openai_api_key, model="text-embedding-3-small")
         
         # Check if vector store already exists for this session
         is_merging = session_id in vector_stores

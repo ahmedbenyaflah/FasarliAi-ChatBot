@@ -1,0 +1,14 @@
+# Force Railway to use Dockerfile instead of Nixpacks
+# This reduces image size significantly for ML-heavy applications
+[phases.setup]
+nixPkgs = []
+
+[phases.install]
+cmds = []
+
+[phases.build]
+cmds = []
+
+[phases.start]
+cmd = ""
+
