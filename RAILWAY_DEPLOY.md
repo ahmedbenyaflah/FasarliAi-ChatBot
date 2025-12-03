@@ -54,8 +54,10 @@ This guide will walk you through deploying both the Next.js frontend and FastAPI
    - Select the same repository
    - Railway will auto-detect Next.js
 
-7. **Configure Frontend Environment Variables**
+7. **Configure Frontend Environment Variables** ⚠️ **CRITICAL: Set BEFORE first build!**
    - Go to your frontend service → **Variables** tab
+   - **IMPORTANT:** These MUST be set BEFORE the first build/deployment
+   - Next.js requires these during build time for static page generation
    - Add these environment variables:
      ```
      NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url

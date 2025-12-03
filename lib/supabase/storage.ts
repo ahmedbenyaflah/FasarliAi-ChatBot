@@ -4,11 +4,51 @@ import { cookies } from 'next/headers'
 
 // Helper to create a Supabase client for storage operations
 async function getSupabaseStorageClient(request?: NextRequest) {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  // During build time, env vars might not be available
+  if (!supabaseUrl || !supabaseAnonKey) {
+    // Return a client with placeholder values during build
+    if (request) {
+      return createServerClient(
+        'https://placeholder.supabase.co',
+        'placeholder-key',
+        {
+          cookies: {
+            getAll() {
+              return request.cookies.getAll()
+            },
+            setAll() {
+              // Cookies are handled by middleware
+            },
+          },
+        }
+      )
+    } else {
+      const cookieStore = await cookies()
+      return createServerClient(
+        'https://placeholder.supabase.co',
+        'placeholder-key',
+        {
+          cookies: {
+            getAll() {
+              return cookieStore.getAll()
+            },
+            setAll() {
+              // Cookies are handled by middleware
+            },
+          },
+        }
+      )
+    }
+  }
+
   if (request) {
     // For API routes
     return createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      supabaseUrl,
+      supabaseAnonKey,
       {
         cookies: {
           getAll() {
@@ -24,8 +64,8 @@ async function getSupabaseStorageClient(request?: NextRequest) {
     // For server components - cookies() is async in Next.js 15+
     const cookieStore = await cookies()
     return createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      supabaseUrl,
+      supabaseAnonKey,
       {
         cookies: {
           getAll() {
