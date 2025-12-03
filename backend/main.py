@@ -26,31 +26,29 @@ elif backend_env_path.exists():
 
 app = FastAPI(title="PDF ChatBot API")
 
-# EMAIL CONFIG - Resend API (works with Supabase, no SMTP blocking on Railway)
-# Resend has a free tier: 3,000 emails/month, 100 emails/day
-# Get your API key from: https://resend.com/api-keys
-# Configure in Supabase Dashboard: Settings > Auth > SMTP Settings (optional, for auth emails)
-RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
-RESEND_FROM_EMAIL = os.getenv("RESEND_FROM_EMAIL", "onboarding@resend.dev")  # Default Resend domain for testing
-RESEND_FROM_NAME = os.getenv("RESEND_FROM_NAME", "FasarliAI")
+# EMAIL CONFIG - Gmail SMTP with App Password
+# Get your app password from: https://myaccount.google.com/apppasswords
+# Support both GMAIL_* and GOOGLE_* variable names for compatibility
+GMAIL_EMAIL = os.getenv("GMAIL_EMAIL") or os.getenv("GOOGLE_EMAIL", "")
+GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD") or os.getenv("GOOGLE_APP_PASSWORD", "")
 
 MFA_DEBUG_MODE = os.getenv("MFA_DEBUG_MODE", "false").lower() == "true"
 
 async def send_mfa_email(recipient: str, code: str, subject: str = "Your Login Verification Code") -> bool:
     """
-    Send MFA verification code via email using Resend API.
-    Works with Supabase and doesn't require SMTP (no blocking on Render).
-    Free tier: 3,000 emails/month, 100 emails/day
+    Send MFA verification code via email using Gmail SMTP with app password.
+    Simple and free - uses your Gmail account!
     """
     import asyncio
-    import requests
-    import json
+    import smtplib
+    from email.mime.text import MIMEText
+    from email.mime.multipart import MIMEMultipart
     
     # Validate credentials
-    if not RESEND_API_KEY:
-        print(f"[ERROR] Resend API key not configured!")
-        print(f"[ERROR] Set RESEND_API_KEY")
-        print(f"[ERROR] Get API key from: https://resend.com/api-keys")
+    if not GMAIL_EMAIL or not GMAIL_APP_PASSWORD:
+        print(f"[ERROR] Gmail credentials not configured!")
+        print(f"[ERROR] Set GMAIL_EMAIL and GMAIL_APP_PASSWORD")
+        print(f"[ERROR] Get app password from: https://myaccount.google.com/apppasswords")
         return False
     
     print(f"[INFO] 📧 Sending verification email to: {recipient}")
@@ -108,45 +106,27 @@ This code expires in 3 minutes.
 If you didn't request this code, please ignore this email.
 """
     
-    # Send email via Resend API (no SMTP, works on Render)
+    # Send email via Gmail SMTP
     try:
-        # Resend API endpoint
-        resend_url = "https://api.resend.com/emails"
+        # Create message
+        message = MIMEMultipart("alternative")
+        message["Subject"] = subject
+        message["From"] = GMAIL_EMAIL
+        message["To"] = recipient
         
-        # Prepare email payload
-        email_payload = {
-            "from": f"{RESEND_FROM_NAME} <{RESEND_FROM_EMAIL}>",
-            "to": [recipient],
-            "subject": subject,
-            "text": text_content,
-            "html": html_content
-        }
+        # Add both plain text and HTML versions
+        part1 = MIMEText(text_content, "plain")
+        part2 = MIMEText(html_content, "html")
+        message.attach(part1)
+        message.attach(part2)
         
         # Send email (run in executor to avoid blocking)
         def send_email_sync():
-            print(f"[DEBUG] Sending email to Resend API...")
-            print(f"[DEBUG] URL: {resend_url}")
-            print(f"[DEBUG] Payload: {json.dumps(email_payload, indent=2)}")
-            
-            response = requests.post(
-                resend_url,
-                headers={
-                    "Authorization": f"Bearer {RESEND_API_KEY}",
-                    "Content-Type": "application/json"
-                },
-                json=email_payload,
-                timeout=10
-            )
-            
-            # Log response for debugging
-            print(f"[DEBUG] Response status: {response.status_code}")
-            try:
-                response_data = response.json()
-                print(f"[DEBUG] Resend API response: {json.dumps(response_data, indent=2)}")
-            except:
-                print(f"[DEBUG] Response text: {response.text}")
-            
-            response.raise_for_status()
+            # Connect to Gmail SMTP server
+            with smtplib.SMTP("smtp.gmail.com", 587) as server:
+                server.starttls()  # Enable encryption
+                server.login(GMAIL_EMAIL, GMAIL_APP_PASSWORD)
+                server.send_message(message)
             return True
         
         loop = asyncio.get_event_loop()
@@ -155,17 +135,14 @@ If you didn't request this code, please ignore this email.
         print(f"[SUCCESS] ✅ Email sent successfully to {recipient}")
         return True
             
-    except requests.exceptions.HTTPError as exc:
-        print(f"[ERROR] ❌ Resend API error: {str(exc)}")
-        if hasattr(exc, 'response') and exc.response is not None:
-            try:
-                error_detail = exc.response.json()
-                print(f"[ERROR] Response: {json.dumps(error_detail, indent=2)}")
-            except:
-                print(f"[ERROR] Response: {exc.response.text}")
+    except smtplib.SMTPAuthenticationError as exc:
+        print(f"[ERROR] ❌ Gmail authentication failed!")
+        print(f"[ERROR] Check your GMAIL_EMAIL and GMAIL_APP_PASSWORD")
+        print(f"[ERROR] Make sure you're using an App Password, not your regular Gmail password")
+        print(f"[ERROR] Get app password from: https://myaccount.google.com/apppasswords")
         return False
-    except requests.exceptions.RequestException as exc:
-        print(f"[ERROR] ❌ Request error: {str(exc)}")
+    except smtplib.SMTPException as exc:
+        print(f"[ERROR] ❌ SMTP error: {str(exc)}")
         return False
     except Exception as exc:
         error_type = type(exc).__name__
@@ -755,170 +732,21 @@ async def health():
 @app.get("/api/test-email-config")
 async def test_email_config():
     """Test endpoint to check email configuration."""
-    resend_configured = bool(RESEND_API_KEY and RESEND_FROM_EMAIL)
+    gmail_configured = bool(GMAIL_EMAIL and GMAIL_APP_PASSWORD)
     
     config_status = {
-        "RESEND_API_KEY_set": bool(RESEND_API_KEY),
-        "RESEND_API_KEY_length": len(RESEND_API_KEY) if RESEND_API_KEY else 0,
-        "RESEND_FROM_EMAIL": RESEND_FROM_EMAIL,
-        "RESEND_FROM_NAME": RESEND_FROM_NAME,
+        "GMAIL_EMAIL_set": bool(GMAIL_EMAIL),
+        "GMAIL_EMAIL_value": GMAIL_EMAIL[:10] + "..." if GMAIL_EMAIL and len(GMAIL_EMAIL) > 10 else GMAIL_EMAIL,
+        "GMAIL_APP_PASSWORD_set": bool(GMAIL_APP_PASSWORD),
+        "GMAIL_APP_PASSWORD_length": len(GMAIL_APP_PASSWORD) if GMAIL_APP_PASSWORD else 0,
         "MFA_DEBUG_MODE": MFA_DEBUG_MODE,
     }
     
     return {
-        "status": "ok" if resend_configured else "error",
-        "message": "Resend API configured correctly (works with Supabase, no SMTP blocking)" if resend_configured else "Resend API key not configured - please set RESEND_API_KEY. Get API key from: https://resend.com/api-keys (Free tier: 3,000 emails/month)",
+        "status": "ok" if gmail_configured else "error",
+        "message": "Gmail SMTP configured correctly" if gmail_configured else "Gmail credentials not configured - please set GMAIL_EMAIL and GMAIL_APP_PASSWORD. Get app password from: https://myaccount.google.com/apppasswords",
         "config": config_status
     }
-
-@app.post("/api/test-email-send")
-async def test_email_send():
-    """
-    Simple test endpoint to send an email.
-    Sends a test email to verify Resend API is working.
-    """
-    import requests
-    import json
-    
-    # Resend free tier: can only send to account owner's email with onboarding@resend.dev
-    # To send to any email: verify your domain at https://resend.com/domains
-    # Then update RESEND_FROM_EMAIL to use your domain (e.g., noreply@yourdomain.com)
-    test_recipient = "ahmedbenyaflah42@gmail.com"  # Your verified Resend account email
-    # After domain verification, you can change this to any email address
-    test_code = "123456"
-    
-    # Check configuration first
-    if not RESEND_API_KEY:
-        return {
-            "status": "error",
-            "message": "RESEND_API_KEY not configured. Please set it in your .env file.",
-            "recipient": test_recipient,
-            "config_check": {
-                "RESEND_API_KEY_set": False,
-                "RESEND_FROM_EMAIL": RESEND_FROM_EMAIL
-            }
-        }
-    
-    if not RESEND_FROM_EMAIL:
-        return {
-            "status": "error",
-            "message": "RESEND_FROM_EMAIL not configured. Please set it in your .env file.",
-            "recipient": test_recipient,
-            "config_check": {
-                "RESEND_API_KEY_set": True,
-                "RESEND_FROM_EMAIL_set": False
-            }
-        }
-    
-    print(f"[TEST] Attempting to send test email to {test_recipient}")
-    print(f"[TEST] Using FROM: {RESEND_FROM_EMAIL}")
-    print(f"[TEST] Using API Key: {RESEND_API_KEY[:10]}..." if RESEND_API_KEY else "[TEST] No API Key")
-    
-    # Try sending email directly to get better error messages
-    try:
-        resend_url = "https://api.resend.com/emails"
-        
-        html_content = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="utf-8">
-            <style>
-                body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f5f5f5; }}
-                .container {{ max-width: 600px; margin: 20px auto; padding: 30px; background-color: white; border-radius: 10px; }}
-                .code-box {{ 
-                    background-color: #f4f4f4; 
-                    border: 3px solid #333; 
-                    padding: 25px; 
-                    text-align: center; 
-                    font-size: 36px; 
-                    font-weight: bold; 
-                    letter-spacing: 8px; 
-                    margin: 30px 0;
-                    font-family: 'Courier New', monospace;
-                    border-radius: 5px;
-                }}
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <h2>🔐 Test Email</h2>
-                <p>This is a test email from FasarliAI.</p>
-                <div class="code-box">{test_code}</div>
-                <p>If you received this, the email system is working!</p>
-            </div>
-        </body>
-        </html>
-        """
-        
-        text_content = f"""Test Email from FasarliAI
-
-This is a test email. Your code is: {test_code}
-
-If you received this, the email system is working!
-"""
-        
-        email_payload = {
-            "from": f"{RESEND_FROM_NAME} <{RESEND_FROM_EMAIL}>",
-            "to": [test_recipient],
-            "subject": "Test Email from FasarliAI",
-            "text": text_content,
-            "html": html_content
-        }
-        
-        print(f"[DEBUG] Sending request to Resend API...")
-        response = requests.post(
-            resend_url,
-            headers={
-                "Authorization": f"Bearer {RESEND_API_KEY}",
-                "Content-Type": "application/json"
-            },
-            json=email_payload,
-            timeout=10
-        )
-        
-        print(f"[DEBUG] Response status: {response.status_code}")
-        print(f"[DEBUG] Response text: {response.text}")
-        
-        if response.status_code == 200:
-            response_data = response.json()
-            return {
-                "status": "success",
-                "message": f"Test email sent successfully to {test_recipient}",
-                "recipient": test_recipient,
-                "code": test_code,
-                "from_email": RESEND_FROM_EMAIL,
-                "resend_response": response_data
-            }
-        else:
-            error_detail = {}
-            try:
-                error_detail = response.json()
-            except:
-                error_detail = {"error": response.text}
-            
-            return {
-                "status": "error",
-                "message": f"Failed to send test email. Resend API returned status {response.status_code}",
-                "recipient": test_recipient,
-                "error": error_detail,
-                "status_code": response.status_code
-            }
-            
-    except Exception as exc:
-        error_type = type(exc).__name__
-        error_msg = str(exc)
-        print(f"[ERROR] Exception: {error_type} - {error_msg}")
-        import traceback
-        traceback.print_exc()
-        
-        return {
-            "status": "error",
-            "message": f"Exception occurred: {error_type}",
-            "recipient": test_recipient,
-            "error": error_msg,
-            "error_type": error_type
-        }
 
 # Password Reset Endpoints
 @app.post("/api/users/forgot-password")

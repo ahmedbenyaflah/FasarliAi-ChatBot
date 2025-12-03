@@ -30,16 +30,13 @@ pip install -r requirements.txt
    GROQ_API_KEY=your_groq_key
    SUPABASE_URL=your_supabase_url
    SUPABASE_SERVICE_ROLE_KEY=service_role_key
-   RESEND_API_KEY=your_resend_api_key
-   RESEND_FROM_EMAIL=onboarding@resend.dev (or your verified domain - see RESEND_SETUP.md)
-   RESEND_FROM_NAME=FasarliAI (optional, defaults to FasarliAI)
+   GMAIL_EMAIL=your_email@gmail.com
+   GMAIL_APP_PASSWORD=your_gmail_app_password
    ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
    MFA_DEBUG_MODE=false
    
-   # Note: With onboarding@resend.dev, you can only send to your verified Resend account email.
-   # To send to any email: verify your domain at https://resend.com/domains
-   # FREE option: Get a free domain from Freenom (.tk, .ml, etc.) - see FREE_EMAIL_SETUP.md
-   # Or use a cheap domain ($1-3/year) - see RESEND_SETUP.md for detailed instructions.
+   # Note: Get Gmail App Password from https://myaccount.google.com/apppasswords
+   # Gmail allows sending to any email address - no domain verification needed!
    
    **Deployment:** See RAILWAY_DEPLOY.md or DEPLOYMENT.md for Railway deployment instructions.
    ```

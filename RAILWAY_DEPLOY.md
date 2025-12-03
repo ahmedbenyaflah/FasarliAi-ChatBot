@@ -36,9 +36,8 @@ This guide will walk you through deploying both the Next.js frontend and FastAPI
      GROQ_API_KEY=your_groq_api_key
      SUPABASE_URL=your_supabase_project_url
      SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
-     RESEND_API_KEY=your_resend_api_key
-     RESEND_FROM_EMAIL=onboarding@resend.dev
-     RESEND_FROM_NAME=FasarliAI
+     GMAIL_EMAIL=your_email@gmail.com
+     GMAIL_APP_PASSWORD=your_gmail_app_password
      ALLOWED_ORIGINS=https://your-frontend-url.up.railway.app,http://localhost:3000
      MFA_DEBUG_MODE=false
      PORT=8000
@@ -91,9 +90,8 @@ This guide will walk you through deploying both the Next.js frontend and FastAPI
 - `SUPABASE_URL` - Your Supabase project URL
 - `SUPABASE_SERVICE_ROLE_KEY` - Your Supabase service role key
 - `ALLOWED_ORIGINS` - Comma-separated list of allowed origins
-- `RESEND_API_KEY` - Resend API key for emails
-- `RESEND_FROM_EMAIL` - Email sender address
-- `RESEND_FROM_NAME` - Email sender name (optional)
+- `GMAIL_EMAIL` - Your Gmail address
+- `GMAIL_APP_PASSWORD` - Your Gmail app password (get from https://myaccount.google.com/apppasswords)
 
 ### Frontend Service (Next.js)
 
@@ -177,10 +175,11 @@ This guide will walk you through deploying both the Next.js frontend and FastAPI
 - Check for Python/Node version issues
 
 ### Email Not Sending
-- Verify `RESEND_API_KEY` is set
-- Check `RESEND_FROM_EMAIL` is correct
+- Verify `GMAIL_EMAIL` and `GMAIL_APP_PASSWORD` are set
+- Make sure you're using an App Password, not your regular Gmail password
+- Get app password from: https://myaccount.google.com/apppasswords
 - Test with `/api/test-email-send` endpoint
-- See `FREE_EMAIL_SETUP.md` for free domain setup
+- **Note:** Railway may block SMTP ports on free tier - if emails fail, consider using Resend API
 
 ## Custom Domains
 
