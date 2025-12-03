@@ -10,8 +10,7 @@ from pypdf import PdfReader
 from dotenv import load_dotenv
 import uuid
 import shutil
-import re
-from fastapi_mail import FastMail, MessageSchema, ConnectionConfig   
+import re   
 
 # Load environment variables from root directory
 # First try root .env, then fall back to backend/.env for backwards compatibility
@@ -27,125 +26,127 @@ elif backend_env_path.exists():
 
 app = FastAPI(title="PDF ChatBot API")
 
-# EMAIL CONFIG - Hardcoded variables (previously from .env)
-# TODO: Replace these with your actual values
-RESEND_API_KEY = os.getenv("RESEND_API_KEY", "re_YOUR_RESEND_API_KEY_HERE")  # Hardcoded fallback
-RESEND_FROM_EMAIL = os.getenv("RESEND_FROM_EMAIL", "onboarding@resend.dev")  # Hardcoded fallback
-GOOGLE_EMAIL = os.getenv("GOOGLE_EMAIL", "ahmedbenyaflah42@gmail.com")  # Hardcoded fallback
-GOOGLE_APP_PASSWORD = os.getenv("GOOGLE_APP_PASSWORD", "hrcmzyzjltclvvys")  # Hardcoded fallback
-
-# SMTP config (kept for local development, but skipped on Render due to timeout issues)
-conf = ConnectionConfig(
-    MAIL_USERNAME = GOOGLE_EMAIL,   
-    MAIL_PASSWORD = GOOGLE_APP_PASSWORD, 
-    MAIL_FROM = GOOGLE_EMAIL,     
-    MAIL_SERVER = "smtp.gmail.com",
-    MAIL_PORT = 587,
-    MAIL_STARTTLS = True,
-    MAIL_SSL_TLS = False,
-    USE_CREDENTIALS = True,
-    TIMEOUT = 10  # Reduced timeout since we'll skip SMTP on Render
-)
-
-# Detect if running on Render (SMTP times out on Render, so skip it)
-IS_RENDER = os.getenv("RENDER") == "true" or os.getenv("RENDER_EXTERNAL_HOSTNAME") is not None
+# EMAIL CONFIG - Gmail SMTP with App Password
+# Get your app password from: https://myaccount.google.com/apppasswords
+GMAIL_EMAIL = "ahmedbenyaflah42@gmail.com"  # Your Gmail address
+GMAIL_APP_PASSWORD = "hrcmzyzjltclvvys"  # Your Gmail app password
 
 MFA_DEBUG_MODE = os.getenv("MFA_DEBUG_MODE", "false").lower() == "true"
 
 async def send_mfa_email(recipient: str, code: str, subject: str = "Your Login Verification Code") -> bool:
     """
-    Send MFA code via email. Uses Resend API on Render (SMTP times out), 
-    otherwise tries SMTP first then falls back to Resend.
-    Returns True if email was sent successfully, False otherwise.
+    Send MFA verification code via email using Gmail SMTP with app password.
+    Simple and free - uses your Gmail account!
     """
-    # Skip SMTP on Render (it times out) - use Resend API directly
-    if IS_RENDER:
-        print(f"[INFO] Running on Render - using Resend API directly (SMTP disabled)")
-        return await send_mfa_email_via_resend(recipient, code, subject)
+    import asyncio
+    import smtplib
+    from email.mime.text import MIMEText
+    from email.mime.multipart import MIMEMultipart
     
-    # For local development, try SMTP first, then fall back to Resend
-    if GOOGLE_EMAIL and GOOGLE_APP_PASSWORD and not GOOGLE_EMAIL.startswith("your-") and not GOOGLE_APP_PASSWORD.startswith("your-"):
-        try:
-            print(f"[DEBUG] Attempting to send email via SMTP to {recipient} using {GOOGLE_EMAIL}")
-            
-            message = MessageSchema(
-                subject=subject,
-                recipients=[recipient],
-                body=f"Your verification code is: {code}\n\nThis code expires in 3 minutes.\n\nDo not share this code with anyone.",
-                subtype="plain",
-            )
-            
-            fast_mail = FastMail(conf)
-            await fast_mail.send_message(message)
-            print(f"[SUCCESS] MFA email sent successfully via SMTP to {recipient}")
-            return True
-            
-        except Exception as exc:
-            print(f"[WARNING] SMTP failed: {type(exc).__name__}: {str(exc)}")
-            print(f"[INFO] Attempting fallback to HTTP API (Resend)...")
+    # Validate credentials
+    if not GMAIL_EMAIL or not GMAIL_APP_PASSWORD:
+        print(f"[ERROR] Gmail credentials not configured!")
+        print(f"[ERROR] Set GMAIL_EMAIL and GMAIL_APP_PASSWORD")
+        return False
     
-    # Use Resend API (either as fallback or primary method)
-    if RESEND_API_KEY and not RESEND_API_KEY.startswith("re_YOUR_"):
-        return await send_mfa_email_via_resend(recipient, code, subject)
+    print(f"[INFO] 📧 Sending verification email to: {recipient}")
+    print(f"[INFO] 🔑 Verification code: {code}")
     
-    print(f"[ERROR] Email credentials not configured!")
-    print(f"[ERROR] GOOGLE_EMAIL configured: {bool(GOOGLE_EMAIL and not GOOGLE_EMAIL.startswith('your-'))}")
-    print(f"[ERROR] GOOGLE_APP_PASSWORD configured: {bool(GOOGLE_APP_PASSWORD and not GOOGLE_APP_PASSWORD.startswith('your-'))}")
-    print(f"[ERROR] RESEND_API_KEY configured: {bool(RESEND_API_KEY and not RESEND_API_KEY.startswith('re_YOUR_'))}")
-    print(f"[DEBUG] MFA CODE for {recipient}: {code} (check logs for code)")
-    return False
+    # HTML email content with verification code
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <style>
+            body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f5f5f5; }}
+            .container {{ max-width: 600px; margin: 20px auto; padding: 30px; background-color: white; border-radius: 10px; }}
+            .code-box {{ 
+                background-color: #f4f4f4; 
+                border: 3px solid #333; 
+                padding: 25px; 
+                text-align: center; 
+                font-size: 36px; 
+                font-weight: bold; 
+                letter-spacing: 8px; 
+                margin: 30px 0;
+                font-family: 'Courier New', monospace;
+                border-radius: 5px;
+            }}
+            .warning {{ color: #d32f2f; font-weight: bold; margin-top: 20px; }}
+            h2 {{ color: #333; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h2>🔐 Your Verification Code</h2>
+            <p>Use the following code to complete your login:</p>
+            <div class="code-box">{code}</div>
+            <p><strong>⏰ This code expires in 3 minutes.</strong></p>
+            <p class="warning">⚠️ Do not share this code with anyone.</p>
+            <p style="color: #666; font-size: 14px;">If you didn't request this code, please ignore this email.</p>
+        </div>
+    </body>
+    </html>
+    """
+    
+    # Plain text version
+    text_content = f"""Your Verification Code
 
-async def send_mfa_email_via_resend(recipient: str, code: str, subject: str = "Your Login Verification Code") -> bool:
-    """
-    Send MFA code via Resend API (HTTP-based, works on Render free tier).
-    Uses hardcoded RESEND_API_KEY from config.
-    """
+Use the following code to complete your login:
+
+{code}
+
+This code expires in 3 minutes.
+
+⚠️ Do not share this code with anyone.
+
+If you didn't request this code, please ignore this email.
+"""
+    
+    # Send email via Gmail SMTP
     try:
-        import requests
-        import asyncio
+        # Create message
+        message = MIMEMultipart("alternative")
+        message["Subject"] = subject
+        message["From"] = GMAIL_EMAIL
+        message["To"] = recipient
         
-        # Use hardcoded values from config
-        resend_api_key = RESEND_API_KEY
-        if not resend_api_key or resend_api_key.startswith("re_YOUR_"):
-            print(f"[ERROR] RESEND_API_KEY not configured! Please set it in the code.")
-            return False
+        # Add both plain text and HTML versions
+        part1 = MIMEText(text_content, "plain")
+        part2 = MIMEText(html_content, "html")
+        message.attach(part1)
+        message.attach(part2)
         
-        resend_from_email = RESEND_FROM_EMAIL
-        
-        print(f"[DEBUG] Attempting to send email via Resend API to {recipient}")
-        
-        # Run requests in thread pool to avoid blocking
+        # Send email (run in executor to avoid blocking)
         def send_email_sync():
-            response = requests.post(
-                "https://api.resend.com/emails",
-                headers={
-                    "Authorization": f"Bearer {resend_api_key}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "from": resend_from_email,
-                    "to": [recipient],
-                    "subject": subject,
-                    "text": f"Your verification code is: {code}\n\nThis code expires in 3 minutes.\n\nDo not share this code with anyone.",
-                },
-                timeout=20.0,
-            )
-            return response
+            # Connect to Gmail SMTP server
+            with smtplib.SMTP("smtp.gmail.com", 587) as server:
+                server.starttls()  # Enable encryption
+                server.login(GMAIL_EMAIL, GMAIL_APP_PASSWORD)
+                server.send_message(message)
+            return True
         
         loop = asyncio.get_event_loop()
-        response = await loop.run_in_executor(None, send_email_sync)
+        await loop.run_in_executor(None, send_email_sync)
         
-        if response.status_code == 200:
-            print(f"[SUCCESS] MFA email sent successfully via Resend API to {recipient}")
-            return True
-        else:
-            print(f"[ERROR] Resend API returned status {response.status_code}: {response.text}")
-            return False
-                
+        print(f"[SUCCESS] ✅ Email sent successfully to {recipient}")
+        return True
+            
+    except smtplib.SMTPAuthenticationError as exc:
+        print(f"[ERROR] ❌ Gmail authentication failed!")
+        print(f"[ERROR] Check your GMAIL_EMAIL and GMAIL_APP_PASSWORD")
+        print(f"[ERROR] Make sure you're using an App Password, not your regular Gmail password")
+        print(f"[ERROR] Get app password from: https://myaccount.google.com/apppasswords")
+        return False
+    except smtplib.SMTPException as exc:
+        print(f"[ERROR] ❌ SMTP error: {str(exc)}")
+        return False
     except Exception as exc:
-        print(f"[ERROR] Failed to send MFA email via Resend API to {recipient}")
-        print(f"[ERROR] Exception type: {type(exc).__name__}")
-        print(f"[ERROR] Exception message: {str(exc)}")
+        error_type = type(exc).__name__
+        error_msg = str(exc)
+        print(f"[ERROR] ❌ Exception while sending email: {error_type}")
+        print(f"[ERROR] Message: {error_msg}")
         import traceback
         traceback.print_exc()
         return False
@@ -729,27 +730,19 @@ async def health():
 @app.get("/api/test-email-config")
 async def test_email_config():
     """Test endpoint to check email configuration."""
-    google_email_configured = bool(GOOGLE_EMAIL and not GOOGLE_EMAIL.startswith("your-"))
-    google_password_configured = bool(GOOGLE_APP_PASSWORD and not GOOGLE_APP_PASSWORD.startswith("your-"))
-    resend_configured = bool(RESEND_API_KEY and not RESEND_API_KEY.startswith("re_YOUR_"))
+    gmail_configured = bool(GMAIL_EMAIL and GMAIL_APP_PASSWORD)
     
     config_status = {
-        "GOOGLE_EMAIL_set": google_email_configured,
-        "GOOGLE_EMAIL_value": GOOGLE_EMAIL[:10] + "..." if google_email_configured else None,
-        "GOOGLE_APP_PASSWORD_set": google_password_configured,
-        "GOOGLE_APP_PASSWORD_length": len(GOOGLE_APP_PASSWORD) if google_password_configured else 0,
-        "RESEND_API_KEY_set": resend_configured,
-        "RESEND_FROM_EMAIL": RESEND_FROM_EMAIL,
-        "IS_RENDER": IS_RENDER,
+        "GMAIL_EMAIL_set": bool(GMAIL_EMAIL),
+        "GMAIL_EMAIL_value": GMAIL_EMAIL[:10] + "..." if GMAIL_EMAIL else None,
+        "GMAIL_APP_PASSWORD_set": bool(GMAIL_APP_PASSWORD),
+        "GMAIL_APP_PASSWORD_length": len(GMAIL_APP_PASSWORD) if GMAIL_APP_PASSWORD else 0,
         "MFA_DEBUG_MODE": MFA_DEBUG_MODE,
     }
     
-    # Email is configured if either SMTP or Resend is available
-    email_configured = (google_email_configured and google_password_configured) or resend_configured
-    
     return {
-        "status": "ok" if email_configured else "error",
-        "message": "Email configured correctly" if email_configured else "Email not configured - please set RESEND_API_KEY or GOOGLE credentials",
+        "status": "ok" if gmail_configured else "error",
+        "message": "Gmail SMTP configured correctly" if gmail_configured else "Gmail credentials not configured - please set GMAIL_EMAIL and GMAIL_APP_PASSWORD. Get app password from: https://myaccount.google.com/apppasswords",
         "config": config_status
     }
 
@@ -857,18 +850,22 @@ def change_password(request: ChangePasswordRequest):
 # User Authentication Endpoints with MFA
 @app.post("/api/users/login")
 async def login_user(login: LoginRequest):
-    """Verify user exists in Supabase and send MFA code via email"""
+    """
+    Handle user login and send verification code via email.
+    This endpoint is called when user tries to sign in.
+    """
     import random
     from datetime import timedelta
     
-    # Note: User authentication is handled by Supabase on frontend
-    # This endpoint only generates and sends MFA code
+    print(f"[INFO] Login attempt for email: {login.email}")
     
-    # Generate 6-digit MFA code
+    # Generate 6-digit verification code
     code = str(random.randint(100000, 999999))
     expires_at = datetime.utcnow() + timedelta(minutes=3)
     
-    # Store MFA code temporarily (keyed by email)
+    print(f"[INFO] Generated verification code: {code} (expires at {expires_at})")
+    
+    # Store verification code (keyed by email)
     if login.email not in mfa_codes_db:
         mfa_codes_db[login.email] = []
     
@@ -878,23 +875,28 @@ async def login_user(login: LoginRequest):
         'is_used': False
     })
     
-    # Send code by email
+    # Send verification code via email
+    print(f"[INFO] Sending verification email to {login.email}...")
     email_sent = await send_mfa_email(login.email, code, "Your Login Verification Code")
     
-    if not email_sent:
-        print(f"[WARNING] Email sending failed for {login.email}, but code generated: {code}")
-        # Still return success so user can proceed (code is in logs if MFA_DEBUG_MODE is enabled)
+    if email_sent:
+        print(f"[SUCCESS] ✅ Verification code sent successfully to {login.email}")
         return {
-            "message": "MFA code generated. Check logs if email not received.",
-            "debug_code": code if MFA_DEBUG_MODE else None,
-            "email_sent": False
+            "message": "Verification code sent to your email",
+            "email": login.email,
+            "email_sent": True,
+            "debug_code": code if MFA_DEBUG_MODE else None
         }
-    
-    return {
-        "message": "MFA code sent to your email",
-        "debug_code": code if MFA_DEBUG_MODE else None,
-        "email_sent": True
-    }
+    else:
+        print(f"[ERROR] ❌ Failed to send verification email to {login.email}")
+        print(f"[DEBUG] Code for {login.email}: {code} (check logs)")
+        return {
+            "message": "Failed to send verification email. Please try again.",
+            "email": login.email,
+            "email_sent": False,
+            "debug_code": code if MFA_DEBUG_MODE else None,
+            "error": "Email delivery failed"
+        }
 
 class MFAVerifyRequest(BaseModel):
     email: str

@@ -21,7 +21,7 @@ faiss-cpu  # Facebook AI Similarity Search for vector storage (CPU version)
 python-dotenv  # Load environment variables from .env file
 
 # Email Functionality
-fastapi-mail  # Email sending for MFA codes
+# Using Gmail SMTP with app password - no additional packages needed (uses built-in smtplib)
 
 # Web Scraping & Search
 beautifulsoup4  # HTML parsing for web scraping
